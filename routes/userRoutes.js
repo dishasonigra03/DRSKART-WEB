@@ -1,0 +1,24 @@
+const express = require('express');
+const router = express.Router();
+const userController = require('../controllers/userController');
+const authMiddleware = require('../middlewares/auth');
+const uploadKyc = require('../middlewares/uploadKyc');
+
+router.use(authMiddleware);
+
+router.get('/profile', userController.getProfile);
+router.put('/profile', userController.updateProfile);
+// KYC: supports multipart/form-data for file upload
+router.post('/kyc', uploadKyc.single('document_file'), userController.submitKyc);
+router.get('/kyc/status', userController.getKycStatus);
+router.post('/become-seller', userController.becomeSeller);
+router.get('/dashboard', userController.getDashboard);
+router.post('/add-contact', userController.addContact);
+router.post('/verify-contact', userController.verifyContact);
+router.get('/wishlist', userController.getWishlist);
+router.get('/wishlist/ids', userController.getWishlistIds);
+router.post('/wishlist/toggle/:equipmentId', userController.toggleWishlist);
+router.delete('/wishlist/:equipmentId', userController.removeFromWishlist);
+
+module.exports = router;
+
