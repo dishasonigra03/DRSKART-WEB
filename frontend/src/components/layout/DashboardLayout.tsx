@@ -1,0 +1,138 @@
+import { Outlet, Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { LayoutDashboard, Package, MessageCircle, ShoppingBag, Loader2, User, Activity, Sparkles, LifeBuoy, Wrench } from "lucide-react";
+
+const NAV_ITEMS = [
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { label: "Profile", href: "/dashboard/profile", icon: User },
+  { label: "Listings", href: "/dashboard/listings", icon: Package, sellerOnly: true },
+  { label: "Promotions", href: "/dashboard/promotions", icon: Sparkles, sellerOnly: true },
+  { label: "Inquiries", href: "/dashboard/inquiries", icon: Activity },
+  { label: "Chat", href: "/dashboard/chat", icon: MessageCircle },
+  { label: "Book Service", href: "/dashboard/services", icon: Wrench },
+  { label: "Support Tickets", href: "/dashboard/tickets", icon: LifeBuoy },
+];
+
+export function DashboardLayout() {
+  const { data: user, isLoading: authLoading } = useAuth();
+  const { data: featureFlags, isLoading: flagsLoading } = useFeatureFlags();
+  const location = useLocation();
+  const isLoading = authLoading || flagsLoading;
+  
+  const isSeller = user?.role === 'seller' || user?.role === 'admin';
+  const isPaidPromotionsGloballyEnabled = featureFlags?.flags?.enable_paid_promotions ?? false;
+  const hasPaidPromotionAccess = user?.role === 'admin' || (user?.role === 'seller' && user?.paid_promotions_enabled);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>  
+    );
+  }
+
+  const visibleItems = NAV_ITEMS.filter(item => {
+    if (item.href === "/dashboard/promotions") {
+      return isPaidPromotionsGloballyEnabled && hasPaidPromotionAccess;
+    }
+    return !item.sellerOnly || isSeller;
+  });
+
+  return (
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 pb-20 md:pb-8">
+      <div className="flex gap-8 relative">
+        
+        {/* Left sidebar navigation — desktop only */}
+        <aside className="w-64 flex-shrink-0 hidden md:block">
+          <div className="bg-card border border-border rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden sticky top-20 transition-colors">
+            {/* User info */}
+            <div className="p-6 border-b border-border bg-muted/30">
+              <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold text-lg mb-3">
+                {(user?.first_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+              </div>
+              <p className="font-bold text-base text-slate-900 dark:text-white truncate">
+                {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : 'My Account'}
+              </p>
+              {user?.username && (
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 truncate mt-0.5">
+                  @{user.username}
+                </p>
+              )}
+              <p className="text-sm text-slate-500 dark:text-slate-400 truncate mt-0.5">{user?.email || user?.phone}</p>
+              <span className={`inline-block mt-3 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                isSeller ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              }`}>
+                {user?.role}
+              </span>
+            </div>
+            
+            {/* Nav links */}
+            <nav className="p-3 space-y-1">
+              {visibleItems.map((item) => {
+                const isActive = item.exact 
+                  ? location.pathname === item.href 
+                  : location.pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all ${
+                      isActive 
+                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 shadow-sm' 
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <item.icon className={`h-5 w-5 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+              
+              {/* Marketplace quick links */}
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-2">Marketplace</p>
+                <Link to="/search" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all border border-emerald-200/60 dark:border-emerald-800/40 shadow-xs">
+                  <ShoppingBag className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Browse Marketplace
+                </Link>
+              </div>
+
+
+            </nav>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 min-w-0">
+          <Outlet />
+        </main>
+      </div>
+
+      {/* ── Mobile Bottom Navigation Bar ─────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-lg">
+        <div className="flex items-center justify-around px-2 py-1">
+          {visibleItems.map((item) => {
+            const isActive = item.exact 
+              ? location.pathname === item.href 
+              : location.pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all ${
+                  isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="text-[10px] font-semibold">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+
